@@ -54,7 +54,7 @@ def autorization(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         
         a = [i for i in find]
-        if {"_id"} in a == "{0.id}".format(message.from_user):
+        if len(a) == 0:
             bot.send_message(message.chat.id,"Ви не зареєстровані")
         else:           
             bot.send_message(message.chat.id,"Зачекайте....")
@@ -63,18 +63,19 @@ def autorization(message):
             part1 = types.KeyboardButton("Зробити запис")
             part2 = types.KeyboardButton("Продивитися усі записи")
             part3 = types.KeyboardButton("Нагадування")
-            part4 = types.KeyboardButton("Вийти з аккаунту")
+            part4 = types.KeyboardButton("Видалити аккаунт")
             markup.add(part1,part2,part3,part4)
             bot.send_message(message.chat.id,"Вітаю,ви увійшли в систему",reply_markup=markup)
 
 
 
-    if message.text == ("Вийти з аккаунту"):
+    if message.text == ("Видалити аккаунт"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         stuff1 = types.KeyboardButton("Авторизуватися")
         stuff2 = types.KeyboardButton("Зареєструватися")
         markup.add(stuff1,stuff2)
-        bot.send_message(message.chat.id,"{0.first_name}".format(message.from_user) + " " + "ви вийшли з аккаунту",reply_markup=markup)
+        bot.send_message(message.chat.id,"{0.first_name}".format(message.from_user) + " " + "ви видалили аккаунт",reply_markup=markup)
+        collection.find_one_and_delete({"_id":"{0.id}".format(message.from_user)})
 
 
 
@@ -85,11 +86,16 @@ def autorization(message):
         
     if message.text == ("Продивитися усі записи"):
         try:
-            note = collection.find({"_id":"{0.id}".format(message.from_user)})
+            note = collection.find({"_id":"{0.id}".format(message.from_user)})          
             for i in note:
-                bot.send_message(message.chat.id,i["notes"])
+                k = i["notes"]
+                for s in k:
+                    if len(s) == 0:
+                        bot.send_message(message.chat.id,"Ви не маєте записів")
+                    else:
+                        bot.send_message(message.chat.id,s)
         except KeyError:
-            bot.send_message(message.chat.id,"Ви не маєте нагадувань")
+            bot.send_message(message.chat.id,"Ви не маєте записів")
 
         
                 
@@ -100,10 +106,9 @@ def autorization(message):
         bot.register_next_step_handler(msg, notes)
 
 
-def notes(message): 
-    print(Notes)  
+def notes(message):   
     Notes.append(message.text + "\n" + "Час запису" + " " +  str(datetime.date.today()))
-    collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
+    collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
     msg = bot.send_message(message.chat.id,"Ви зробили запис")
     bot.register_next_step_handler(msg, autorization)
     
@@ -111,27 +116,45 @@ def notes(message):
 
 
 
-def reminders(message):     
+def reminders(message):
+    try:
+        info = collection.find({"_id":"{0.id}".format(message.from_user)})
+        for i in info:
+            k = i["reminders"]              
+            if len(k) >= 1:
+                bot.send_message(message.chat.id,"Ви вже маєте активне нагадування")
+            else:   
+                Reminders.append(message.text)   
+                collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+                stuff1 = types.KeyboardButton("15 хвилин")
+                stuff2 = types.KeyboardButton("30 хвилин")
+                stuff3 = types.KeyboardButton("1 година")
+                stuff4 = types.KeyboardButton("2 години")
+                stuff5 = types.KeyboardButton("4 години")
+                stuff6 = types.KeyboardButton("6 годин")
+                stuff7 = types.KeyboardButton("12 годин")
+                stuff8 = types.KeyboardButton("24 години")
+                markup.add(stuff1,stuff2,stuff3,stuff4,stuff5,stuff6,stuff7,stuff8)
+                mess = bot.send_message(message.chat.id,"Коли Вам це нагадати",reply_markup=markup)   
+                bot.register_next_step_handler(mess, name_reminder)
+    except KeyError:
         
-        l = len(Reminders)
-        if l >= 1:
-            bot.send_message(message.chat.id,"Ви вже маєте активне нагадування")
-        else:   
-            Reminders.append(message.text)    
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            stuff1 = types.KeyboardButton("15 хвилин")
-            stuff2 = types.KeyboardButton("30 хвилин")
-            stuff3 = types.KeyboardButton("1 година")
-            stuff4 = types.KeyboardButton("2 години")
-            stuff5 = types.KeyboardButton("4 години")
-            stuff6 = types.KeyboardButton("6 годин")
-            stuff7 = types.KeyboardButton("12 годин")
-            stuff8 = types.KeyboardButton("24 години")
-            markup.add(stuff1,stuff2,stuff3,stuff4,stuff5,stuff6,stuff7,stuff8)
-            mess = bot.send_message(message.chat.id,"Коли Вам це нагадати",reply_markup=markup)   
-            bot.register_next_step_handler(mess, name_reminder)
-   
+        Reminders.append(message.text)    
+        collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        stuff1 = types.KeyboardButton("15 хвилин")
+        stuff2 = types.KeyboardButton("30 хвилин")
+        stuff3 = types.KeyboardButton("1 година")
+        stuff4 = types.KeyboardButton("2 години")
+        stuff5 = types.KeyboardButton("4 години")
+        stuff6 = types.KeyboardButton("6 годин")
+        stuff7 = types.KeyboardButton("12 годин")
+        stuff8 = types.KeyboardButton("24 години")
+        markup.add(stuff1,stuff2,stuff3,stuff4,stuff5,stuff6,stuff7,stuff8)
+        mess = bot.send_message(message.chat.id,"Коли Вам це нагадати",reply_markup=markup)   
+        bot.register_next_step_handler(mess, name_reminder)
+
     
 
 def name_reminder(message):
@@ -147,8 +170,11 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
+            
+            
     if message.text == ("30 хвилин"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -161,8 +187,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
     if message.text == ("1 година"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -175,8 +202,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
     if message.text == ("2 години"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -189,8 +217,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
     if message.text == ("4 години"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -203,8 +232,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
     if message.text == ("6 годин"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -217,8 +247,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
     if message.text == ("12 годин"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -231,8 +262,9 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+           
     if message.text == ("24 години"):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         part1 = types.KeyboardButton("Зробити запис")
@@ -245,18 +277,8 @@ def name_reminder(message):
         find = collection.find({"_id":"{0.id}".format(message.from_user)})
         for whole_list in find:
             bot.send_message(message.chat.id,"❗️❗️❗️" + "Нагадування" + "\n" + "\n" + "\n" +  whole_list["reminders"][0])
-            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes})
             del Reminders[0]
-    #try:
-        
-        #Date_reminders.append(eval(message.text))
-        #date = datetime.datetime.today()
-        #dat = date.strftime("%H.%M")
-        
-        #if Date_reminders == dat:
-        #    bot.send_message(message.chat.id,"Good")
-    #except (NameError, SyntaxError):
-    #    msg = bot.send_message(message.chat.id,"Введіть коректний час")
-    #    bot.register_next_step_handler(msg, name_reminder)
+            collection.update({"_id":"{0.id}".format(message.from_user)}, {"_id":"{0.id}".format(message.from_user),"notes":Notes,"reminders":Reminders})
+            
 bot.polling(none_stop=True)
 
